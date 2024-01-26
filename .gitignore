@@ -4,3 +4,8 @@ tutorial
 *.csv
 *.xlsx
 *.log
+!HELP.md
+data_files
+.mypy_cache
+.ruff_cache
+*.spec

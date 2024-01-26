@@ -12,13 +12,6 @@ Unzip the archive in your desired folder.
 
 ## From source
 
-Clone the repo:
-
-```sh
-git clone https://github.com/george-cm/marketo-forms-crawler.git
-cd marketo-forms-crawler
-```
-
 Create a virtual environment:
 
 ```sh
@@ -45,18 +38,18 @@ source .venv/bin/activate
 .venv\Scripts\activate.bat
 ```
 
-Install dependencies:
+Install the package:
 
 ```sh
-python -m pip install -r requirements.txt
+python -m pip install git+https://github.com/george-cm/marketo-forms-crawler#egg=marketo-forms-crawler
 ```
 
 ## Usage
 
 ### On Windows
 
-```sh
-crawl_marketo_forms.exe [-h] [--append] [--version] [--noautothrottle] [--autothrottlemaxdelay ATHROTTLEMAXDELAY] [--logfile LOGFILE] [--loglevel {DEBUG,INFO,WARNING,ERROR,CRITICAL}] [--logappend] url output
+```console
+.\crawl_marketo_forms.exe [-h] [--append] [--version] [--noautothrottle] [--autothrottlemaxdelay ATHROTTLEMAXDELAY] [--logfile LOGFILE] [--loglevel {DEBUG,INFO,WARNING,ERROR,CRITICAL}] [--logappend] url output
 
 Crawl links from a sitemap.xml url and extract Marketo form ids.
 
@@ -71,7 +64,7 @@ options:
   --noautothrottle, -na
                         disable autothrottle. The software will crawl faster, but may be blocked by the website server.
   --autothrottlemaxdelay ATHROTTLEMAXDELAY, -amd ATHROTTLEMAXDELAY
-                        set the maximum delay between requests. Default is 60.
+                        set the maximum delay between requests in seconds. Default is 60s.
   --logfile LOGFILE, -lf LOGFILE
                         log file
   --loglevel {DEBUG,INFO,WARNING,ERROR,CRITICAL}, -ll {DEBUG,INFO,WARNING,ERROR,CRITICAL}
@@ -81,7 +74,7 @@ options:
 
 ### On Linux and MacOS
 
-```sh
+```console
 python .\crawl_marketo_forms.py [-h] [--append] [--version] [--noautothrottle] [--autothrottlemaxdelay ATHROTTLEMAXDELAY] [--logfile LOGFILE] [--loglevel {DEBUG,INFO,WARNING,ERROR,CRITICAL}] [--logappend] url output
 
 Crawl links from a sitemap.xml url and extract Marketo form ids.
@@ -97,10 +90,24 @@ options:
   --noautothrottle, -na
                         disable autothrottle. The software will crawl faster, but may be blocked by the website server.
   --autothrottlemaxdelay ATHROTTLEMAXDELAY, -amd ATHROTTLEMAXDELAY
-                        set the maximum delay between requests. Default is 60.
+                        set the maximum delay between requests in seconds. Default is 60s.
   --logfile LOGFILE, -lf LOGFILE
                         log file
   --loglevel {DEBUG,INFO,WARNING,ERROR,CRITICAL}, -ll {DEBUG,INFO,WARNING,ERROR,CRITICAL}
                         log level. Default: DEBUG
   --logappend, -la      append to log file instead of overwriting.
+```
+
+## Examples
+
+1. Crawl a website and save the results to a CSV file:
+
+```console
+.\crawl_marketo_forms.py "https://example.com/sitemap.xml" output_file.csv
+```
+
+2. Crawl a website, save the results to a CSV file and write log messages to a file:
+
+```console
+.\crawl_marketo_forms.py "https://example.com/sitemap.xml" output_file.csv -lf logfile.log
 ```

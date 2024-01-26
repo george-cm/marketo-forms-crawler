@@ -2,6 +2,7 @@
 import argparse
 import logging
 from pathlib import Path
+from typing import Any, Dict, Generator, List
 
 import scrapy.core.scraper
 import scrapy.utils.misc
@@ -10,7 +11,7 @@ from scrapy.selector import SelectorList
 from scrapy.spiders import SitemapSpider
 from scrapy.utils.url import parse_url
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 
 # pylint: disable-next=W0622:redefined-builtin,W0613:unused-argument
@@ -38,18 +39,22 @@ class MySpider(SitemapSpider):
         "REQUEST_FINGERPRINTER_IMPLEMENTATION": "2.7",
     }
 
-    def parse(self, response, **kwargs):
+    def parse(self, response, **kwargs) -> Generator[dict[str, Any], Any, None]:
+        page_details: Dict[str, Any]
         formloads: list[str] = response.xpath(
             "//script[contains(., 'MktoForms2.loadForm(')]/text()"
         ).re(r"MktoForms2.loadForm\((.*?)\)")
+
         if len(formloads) > 0:
             for formload in formloads:  # type: ignore
-                details: list = [x.strip().strip('"') for x in formload.split(",")]
+                details: List = [x.strip().strip('"') for x in formload.split(",")]
+                page_details = self._extract_page_details(response)
                 yield {
                     "url": response.url,
                     "form_id": details[2],
                     "Marketo_domain": details[0].strip("/"),
                     "munchkin_id": details[1],
+                    **page_details,
                 }
         else:
             mkto_domains_urls = response.xpath(
@@ -57,6 +62,7 @@ class MySpider(SitemapSpider):
                 "//script[contains(@src, 'marketo.com/js/forms2/js/forms2')]"
             )
             if mkto_domains_urls:
+                page_details = self._extract_page_details(response)
                 mkto_domains = []
                 for mkto_domain in mkto_domains_urls:  # type: ignore
                     if mkto_domain.attrib.get("href"):
@@ -83,7 +89,17 @@ class MySpider(SitemapSpider):
                         "form_id": form_id.split("_")[1],
                         "Marketo_domain": "; ".join(mkto_domains),
                         "munchkin_id": "; ".join(munchkin_ids),
+                        **page_details,
                     }
+
+    def _extract_page_details(self, response) -> dict[str, Any]:
+        return {
+            "title": response.xpath("//title/text()").get(),
+            "meta description": response.xpath(
+                "//meta[@name='description']/@content"
+            ).get(),
+            "h1 (heading 1)": " ".join(response.xpath("string(//h1)").get().split()),
+        }
 
 
 def main():
@@ -114,9 +130,9 @@ def main():
     parser.add_argument(
         "--autothrottlemaxdelay",
         "-amd",
-        type=int,
+        type=float,
         dest="athrottlemaxdelay",
-        help="set the maximum delay between requests. Default is 60.",
+        help="set the maximum delay between requests in seconds. Default is 60s.",
     )
     parser.add_argument("--logfile", "-lf", help="log file")
     parser.add_argument(

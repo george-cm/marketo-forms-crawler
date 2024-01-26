@@ -1,1 +1,31 @@
-[tool.pyright]
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "marketo_forms_crawler"
+authors = [
+    { name = "George Murga", email = "george.murga+marketoformscrawler@gmail.com" },
+]
+description = "Crawl links from a sitemap.xml url and extract Marketo form ids."
+readme = "README.md"
+dependencies = ["scrapy", 'importlib-metadata; python_version<"3.10"']
+requires-python = ">=3.8"
+dynamic = ["version"]
+license = { text = "MIT" }
+
+[project.scripts]
+crawl_marketo_forms = "crawl_marketo_forms:main"
+
+[project.urls]
+"Homepage" = "https://github.com/george-cm/marketo-forms-crawler"
+
+[tool.setuptools]
+py-modules = ["crawl_marketo_forms"]
+
+[tool.setuptools.dynamic]
+version = { attr = "crawl_marketo_forms.__version__" }
+
+[tool.mypy]
+check_untyped_defs = true
+disable_error_code = "annotation-unchecked"
