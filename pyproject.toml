@@ -7,7 +7,7 @@ name = "marketo_forms_crawler"
 authors = [
     { name = "George Murga", email = "george.murga+marketoformscrawler@gmail.com" },
 ]
-description = "Crawl links from a sitemap.xml url and extract Marketo form ids."
+description = "Crawl links from a site's url and extract Marketo form ids."
 readme = "README.md"
 dependencies = ["scrapy", 'importlib-metadata; python_version<"3.10"']
 requires-python = ">=3.8"
@@ -29,3 +29,5 @@ version = { attr = "crawl_marketo_forms.__version__" }
 [tool.mypy]
 check_untyped_defs = true
 disable_error_code = "annotation-unchecked"
+explicit_package_bases = true
+ignore_missing_imports = true

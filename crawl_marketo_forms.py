@@ -1,4 +1,4 @@
-"""Crawl links from a sitemap.xml url and extract Marketo form ids."""
+"""Crawl links from a site's url and extract Marketo form ids."""
 import argparse
 import logging
 from pathlib import Path
@@ -6,16 +6,17 @@ from typing import Any, Dict, Generator, List
 
 import scrapy.core.scraper
 import scrapy.utils.misc
+from scrapy import Spider
 from scrapy.crawler import CrawlerProcess
+from scrapy.linkextractors import LinkExtractor
 from scrapy.selector import SelectorList
-from scrapy.spiders import SitemapSpider
-from scrapy.utils.url import parse_url
+from scrapy.utils.url import ParseResult, parse_url
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 
 
 # pylint: disable-next=W0622:redefined-builtin,W0613:unused-argument
-def warn_on_generator_with_return_value_stub(spider, callable):
+def warn_on_generator_with_return_value_stub(spider, callable) -> None:
     """Stub for scrapy.utils.misc.warn_on_generator_with_return_value."""
     pass  # pylint: disable=W0107:unnecessary-pass
 
@@ -28,71 +29,95 @@ scrapy.core.scraper.warn_on_generator_with_return_value = (
 )
 
 
-class MySpider(SitemapSpider):
-    """Spider class for crawling Marketo forms from a sitemap url."""
+class MySpider(Spider):
+    """Spider class for crawling Marketo forms from a site's url."""
 
     name = "tagforms"
-    allowed_domains: list[str] = []
-    sitemap_urls: list[str] = []
+    allowed_domains: List[str] = []
+    start_urls: List[str] = []
+    linkextractor: LinkExtractor  # = LinkExtractor(allow="/en-gb/")
     custom_settings = {
         "AUTOTHROTTLE_ENABLED": True,
         "REQUEST_FINGERPRINTER_IMPLEMENTATION": "2.7",
+        "HTTPERROR_ALLOWED_CODES": [404],
     }
 
-    def parse(self, response, **kwargs) -> Generator[dict[str, Any], Any, None]:
-        page_details: Dict[str, Any]
-        formloads: list[str] = response.xpath(
-            "//script[contains(., 'MktoForms2.loadForm(')]/text()"
-        ).re(r"MktoForms2.loadForm\((.*?)\)")
-
-        if len(formloads) > 0:
-            for formload in formloads:  # type: ignore
-                details: List = [x.strip().strip('"') for x in formload.split(",")]
-                page_details = self._extract_page_details(response)
-                yield {
-                    "url": response.url,
-                    "form_id": details[2],
-                    "Marketo_domain": details[0].strip("/"),
-                    "munchkin_id": details[1],
-                    **page_details,
-                }
+    def parse(
+        self, response, **kwargs
+    ) -> Generator[dict[str, Any], Any, None] | Generator[scrapy.Request, None, None]:
+        if response.status == 404:
+            logging.warning("Page not found: %s", response.url)
+            yield {
+                "url": response.url,
+                "status": response.status,
+                "error": "Page not found",
+                "form_id": None,
+                "Marketo_domain": None,
+                "munchkin_id": None,
+                "title": None,
+                "meta description": None,
+                "h1 (heading 1)": None,
+            }
         else:
-            mkto_domains_urls = response.xpath(
-                "//link[contains(@href, 'marketo.com/js/forms2/js/forms2')] | "
-                "//script[contains(@src, 'marketo.com/js/forms2/js/forms2')]"
-            )
-            if mkto_domains_urls:
-                page_details = self._extract_page_details(response)
-                mkto_domains = []
-                for mkto_domain in mkto_domains_urls:  # type: ignore
-                    if mkto_domain.attrib.get("href"):
-                        url = mkto_domain.attrib["href"]
-                    elif mkto_domain.attrib.get("src"):
-                        url = mkto_domain.attrib["src"]
-                    else:
-                        continue
-                    mkto_domain = parse_url(url).hostname
-                    mkto_domains.append(mkto_domain)
-                mkto_domains = list(set(mkto_domains))
-                munchkin_ids = response.xpath(
-                    "//script[contains(text(), 'Munchkin.init(')]/text()"
-                ).re(r"Munchkin.init\((.*?)\)")
-                munchkin_ids = list(
-                    {x.strip().strip("'").strip('"') for x in munchkin_ids}  # type: ignore
-                )
-                marketo_form_ids: SelectorList = response.xpath(
-                    "//form[starts-with(@id, 'mktoForm_')]/@id"
-                ).getall()
-                for form_id in marketo_form_ids:  # type: ignore
+            page_details: Dict[str, Any]
+            formloads: List[str] = response.xpath(
+                "//script[contains(., 'MktoForms2.loadForm(')]/text()"
+            ).re(r"MktoForms2.loadForm\((.*?)\)")
+
+            if len(formloads) > 0:
+                for formload in formloads:  # type: ignore
+                    details: List = [x.strip().strip('"') for x in formload.split(",")]
+                    page_details = self._extract_page_details(response)
                     yield {
                         "url": response.url,
-                        "form_id": form_id.split("_")[1],
-                        "Marketo_domain": "; ".join(mkto_domains),
-                        "munchkin_id": "; ".join(munchkin_ids),
+                        "status": response.status,
+                        "error": None,
+                        "form_id": details[2],
+                        "Marketo_domain": details[0].strip("/"),
+                        "munchkin_id": details[1],
                         **page_details,
                     }
+            else:
+                mkto_domains_urls = response.xpath(
+                    "//link[contains(@href, 'marketo.com/js/forms2/js/forms2')] | "
+                    "//script[contains(@src, 'marketo.com/js/forms2/js/forms2')]"
+                )
+                if mkto_domains_urls:
+                    page_details = self._extract_page_details(response)
+                    mkto_domains = []
+                    for mkto_domain in mkto_domains_urls:  # type: ignore
+                        if mkto_domain.attrib.get("href"):
+                            url = mkto_domain.attrib["href"]
+                        elif mkto_domain.attrib.get("src"):
+                            url = mkto_domain.attrib["src"]
+                        else:
+                            continue
+                        mkto_domain = parse_url(url).hostname
+                        mkto_domains.append(mkto_domain)
+                    mkto_domains = list(set(mkto_domains))
+                    munchkin_ids = response.xpath(
+                        "//script[contains(text(), 'Munchkin.init(')]/text()"
+                    ).re(r"Munchkin.init\((.*?)\)")
+                    munchkin_ids = list(
+                        {x.strip().strip("'").strip('"') for x in munchkin_ids}  # type: ignore
+                    )
+                    marketo_form_ids: SelectorList = response.xpath(
+                        "//form[starts-with(@id, 'mktoForm_')]/@id"
+                    ).getall()
+                    for form_id in marketo_form_ids:  # type: ignore
+                        yield {
+                            "url": response.url,
+                            "status": response.status,
+                            "error": None,
+                            "form_id": form_id.split("_")[1],  # type: ignore
+                            "Marketo_domain": "; ".join(mkto_domains),
+                            "munchkin_id": "; ".join(munchkin_ids),
+                            **page_details,
+                        }
+        for link in self.linkextractor.extract_links(response):
+            yield scrapy.Request(link.url, callback=self.parse)
 
-    def _extract_page_details(self, response) -> dict[str, Any]:
+    def _extract_page_details(self, response) -> Dict[str, Any]:
         return {
             "title": response.xpath("//title/text()").get(),
             "meta description": response.xpath(
@@ -108,7 +133,7 @@ def main():
         prog="crawl_marketo_forms",
         description=__doc__,
     )
-    parser.add_argument("url", help="URL of sitemap")
+    parser.add_argument("url", help="URL of the site to crawl.")
     parser.add_argument("output", help="CSV output file.")
     parser.add_argument(
         "--append",
@@ -160,15 +185,26 @@ def main():
             },
         }
     )
+
     logger: logging.Logger = logging.getLogger()
-    MySpider.sitemap_urls = [args.url]
+    logger.info(args.url)
+
+    parsed_url: ParseResult = parse_url(args.url)
+    restrict_path = parsed_url.path
     domain = parse_url(args.url).hostname
+
+    MySpider.start_urls = [args.url]
+    MySpider.linkextractor = LinkExtractor(allow=[f"/{restrict_path.strip('/')}/"])
+
     if domain is not None:
         MySpider.allowed_domains = [domain]
+
     if args.noautothrottle:
         MySpider.custom_settings["AUTOTHROTTLE_ENABLED"] = False  # type: ignore
+
     if args.athrottlemaxdelay:
         MySpider.custom_settings["AUTOTHROTTLE_MAX_DELAY"] = args.athrottlemaxdelay  # type: ignore
+
     if args.logfile:
         logfile = Path(args.logfile)
         if not logfile.parent.exists():
@@ -182,10 +218,12 @@ def main():
         logger.addHandler(console_handler)
         MySpider.custom_settings["LOG_ENABLED"] = True  # type: ignore
         MySpider.custom_settings["LOG_FILE"] = logfile  # type: ignore
+
         if args.logappend:
             MySpider.custom_settings["LOG_FILE_APPEND"] = True  # type: ignore
         else:
             MySpider.custom_settings["LOG_FILE_APPEND"] = False  # type: ignore
+
         MySpider.custom_settings["LOG_LEVEL"] = args.loglevel  # type: ignore
 
     process.crawl(MySpider)

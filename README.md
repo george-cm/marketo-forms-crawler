@@ -1,6 +1,6 @@
 # crawl_marketo_forms
 
-Crawl a website's pages based on its sitemap.xml and find Marketo forms.
+Crawl a website's pages based on its url and find Marketo forms.
 Written using [Python](https://www.python.org) and [Scrapy](https://scrapy.org/).
 
 ## Installation
@@ -51,10 +51,10 @@ python -m pip install git+https://github.com/george-cm/marketo-forms-crawler#egg
 ```console
 .\crawl_marketo_forms.exe [-h] [--append] [--version] [--noautothrottle] [--autothrottlemaxdelay ATHROTTLEMAXDELAY] [--logfile LOGFILE] [--loglevel {DEBUG,INFO,WARNING,ERROR,CRITICAL}] [--logappend] url output
 
-Crawl links from a sitemap.xml url and extract Marketo form ids.
+Crawl links from a site's url and extract Marketo form ids.
 
 positional arguments:
-  url                   URL of sitemap
+  url                   URL of the site to crawl.
   output                CSV output file.
 
 options:
@@ -77,10 +77,10 @@ options:
 ```console
 python .\crawl_marketo_forms.py [-h] [--append] [--version] [--noautothrottle] [--autothrottlemaxdelay ATHROTTLEMAXDELAY] [--logfile LOGFILE] [--loglevel {DEBUG,INFO,WARNING,ERROR,CRITICAL}] [--logappend] url output
 
-Crawl links from a sitemap.xml url and extract Marketo form ids.
+Crawl links from a site's url and extract Marketo form ids.
 
 positional arguments:
-  url                   URL of sitemap
+  url                   URL of the site to crawl.
   output                CSV output file.
 
 options:
@@ -103,11 +103,11 @@ options:
 1. Crawl a website and save the results to a CSV file:
 
 ```console
-.\crawl_marketo_forms.py "https://example.com/sitemap.xml" output_file.csv
+.\crawl_marketo_forms.py "https://example.com/" output_file.csv
 ```
 
 2. Crawl a website, save the results to a CSV file and write log messages to a file:
 
 ```console
-.\crawl_marketo_forms.py "https://example.com/sitemap.xml" output_file.csv -lf logfile.log
+.\crawl_marketo_forms.py "https://example.com/" output_file.csv -lf logfile.log
 ```
