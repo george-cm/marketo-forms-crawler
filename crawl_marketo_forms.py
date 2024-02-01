@@ -2,7 +2,7 @@
 import argparse
 import logging
 from pathlib import Path
-from typing import Any, Dict, Generator, List
+from typing import Any, Dict, Generator, List, Optional
 
 import scrapy.core.scraper
 import scrapy.utils.misc
@@ -114,8 +114,59 @@ class MySpider(Spider):
                             "munchkin_id": "; ".join(munchkin_ids),
                             **page_details,
                         }
+        experience_fragments = response.xpath(
+            "//a[@data-target='#cta-modal'][@data-modal]/@data-modal"
+        ).getall()
+        if len(experience_fragments) > 0:
+            logging.info("Found experience fragments: %s", response.url)
+            for link in experience_fragments:  # type: ignore
+                experience_fragment_url = (
+                    link.strip("/") + "/jcr:content/root/responsivegrid.html"
+                )
+                parsed_url = parse_url(response.url)
+                base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
+                yield response.follow(
+                    f"{base_url}/{experience_fragment_url}",
+                    callback=self.parse_experience_fragments,
+                    meta={
+                        "referer": response.url,
+                        "page_details": self._extract_page_details(response),
+                        "response_status": response.status,
+                    },
+                    dont_filter=True,
+                )
         for link in self.linkextractor.extract_links(response):
             yield scrapy.Request(link.url, callback=self.parse)
+
+    def parse_experience_fragments(
+        self, response
+    ) -> Optional[Generator[dict[str, Any], Any, None]]:
+        """Parse experience fragments."""
+        logging.info(
+            "Parsing experience fragments: %s, %s",
+            response.url,
+            response.meta.get("referer"),
+        )
+        found_on_page = response.meta.get("referer")
+
+        formloads: List[str] = response.xpath(
+            "//script[contains(., 'MktoForms2.loadForm(')]/text()"
+        ).re(r"MktoForms2.loadForm\((.*?)\)")
+
+        if len(formloads) > 0:
+            for formload in formloads:  # type: ignore
+                details: List = [x.strip().strip('"') for x in formload.split(",")]
+                page_details = response.meta.get("page_details")
+                yield {
+                    "url": found_on_page,
+                    "status": response.meta.get("response_status"),
+                    "error": None,
+                    "form_id": details[2],
+                    "Marketo_domain": details[0].strip("/"),
+                    "munchkin_id": details[1],
+                    **page_details,
+                    "from_experience_fragment": True,
+                }
 
     def _extract_page_details(self, response) -> Dict[str, Any]:
         return {
