@@ -8,11 +8,12 @@ import scrapy.core.scraper
 import scrapy.utils.misc
 from scrapy import Spider
 from scrapy.crawler import CrawlerProcess
+from scrapy.http import JsonRequest
 from scrapy.linkextractors import LinkExtractor
 from scrapy.selector import SelectorList
 from scrapy.utils.url import ParseResult, parse_url
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 
 
 # pylint: disable-next=W0622:redefined-builtin,W0613:unused-argument
@@ -57,7 +58,28 @@ class MySpider(Spider):
                 "title": None,
                 "meta description": None,
                 "h1 (heading 1)": None,
+                "from_experience_fragment": None,
             }
+        elif response.url.strip("/").endswith("https://sps.honeywell.com/us/en/events"):
+            items_per_page = 1
+            yield JsonRequest(
+                "https://sps.honeywell.com/pif/api/search/v1/joule-bt-sps-sps-prod/search?appId=81",
+                callback=self.parse_events,
+                method="POST",
+                data={
+                    "query": "",
+                    "filters": {
+                        "all": [{"document_type": ["events"]}, {"language": "en_us"}]
+                    },
+                    "facets": {
+                        "article_tags": {"type": "value", "size": 250},
+                        "location": {"type": "value", "size": 250},
+                        "tags": {"type": "value", "size": 250},
+                    },
+                    "sort": [{"start_date": "desc"}],
+                    "page": {"current": 1, "size": items_per_page},
+                },
+            )
         else:
             page_details: Dict[str, Any]
             formloads: List[str] = response.xpath(
@@ -72,10 +94,11 @@ class MySpider(Spider):
                         "url": response.url,
                         "status": response.status,
                         "error": None,
-                        "form_id": details[2],
+                        "form_id": int(details[2]),
                         "Marketo_domain": details[0].strip("/"),
                         "munchkin_id": details[1],
                         **page_details,
+                        "from_experience_fragment": None,
                     }
             else:
                 mkto_domains_urls = response.xpath(
@@ -109,10 +132,11 @@ class MySpider(Spider):
                             "url": response.url,
                             "status": response.status,
                             "error": None,
-                            "form_id": form_id.split("_")[1],  # type: ignore
+                            "form_id": int(form_id.split("_")[1]),  # type: ignore
                             "Marketo_domain": "; ".join(mkto_domains),
                             "munchkin_id": "; ".join(munchkin_ids),
                             **page_details,
+                            "from_experience_fragment": None,
                         }
         experience_fragments = response.xpath(
             "//a[@data-target='#cta-modal'][@data-modal]/@data-modal"
@@ -137,6 +161,38 @@ class MySpider(Spider):
                 )
         for link in self.linkextractor.extract_links(response):
             yield scrapy.Request(link.url, callback=self.parse)
+
+    def parse_events(self, response):
+        """Parse events from the search API"""
+        items_per_page = (
+            response.json().get("meta", {}).get("page", {}).get("total_results", 0)
+        )
+        if items_per_page > 0:
+            yield JsonRequest(
+                "https://sps.honeywell.com/pif/api/search/v1/joule-bt-sps-sps-prod/search?appId=81",
+                callback=self.parse_all_events,
+                method="POST",
+                data={
+                    "query": "",
+                    "filters": {
+                        "all": [{"document_type": ["events"]}, {"language": "en_us"}]
+                    },
+                    "facets": {
+                        "article_tags": {"type": "value", "size": 250},
+                        "location": {"type": "value", "size": 250},
+                        "tags": {"type": "value", "size": 250},
+                    },
+                    "sort": [{"start_date": "desc"}],
+                    "page": {"current": 1, "size": items_per_page},
+                },
+            )
+
+    def parse_all_events(self, response):
+        """Parse all events."""
+        for event in response.json().get("results", []):
+            yield scrapy.Request(
+                event.get("url", {}).get("raw", None), callback=self.parse
+            )
 
     def parse_experience_fragments(
         self, response
@@ -167,6 +223,7 @@ class MySpider(Spider):
                     **page_details,
                     "from_experience_fragment": True,
                 }
+        return
 
     def _extract_page_details(self, response) -> Dict[str, Any]:
         return {
