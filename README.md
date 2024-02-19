@@ -41,7 +41,7 @@ source .venv/bin/activate
 Install the package:
 
 ```sh
-python -m pip install git+https://github.com/george-cm/marketo-forms-crawler#egg=marketo-forms-crawler
+python -m pip install 'marketo_forms_crawler @ git+https://github.com/george-cm/marketo-forms-crawler'
 ```
 
 ## Usage
@@ -111,3 +111,25 @@ options:
 ```console
 .\crawl_marketo_forms.py "https://example.com/" output_file.csv -lf logfile.log
 ```
+
+## How to build an executable for Windows using Pyinstaller
+
+Install the package including the dev dependencies:
+
+```sh
+python -m pip install 'marketo_forms_crawler[dev] @ git+https://github.com/george-cm/marketo-forms-crawler'
+```
+
+Build the executable:
+
+```sh
+pyinstaller .\crawl_marketo_forms.py
+```
+
+### Windows Defender Identifies crawl_marketo_forms.exe as A Threat
+
+Follow the guides below to build a Pyinstaller bootloader for Windows using MSVC:
+
+[Building the Bootloader](https://pyinstaller.org/en/stable/bootloader-building.html)
+
+[Pyinstaller EXE False-Positive Trojan Virus [RESOLVED]](https://plainenglish.io/blog/pyinstaller-exe-false-positive-trojan-virus-resolved-b33842bd3184)
