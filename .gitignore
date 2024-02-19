@@ -11,3 +11,4 @@ data_files
 *.spec
 .venv_*
 pyinstaller/
+.chrome_data/

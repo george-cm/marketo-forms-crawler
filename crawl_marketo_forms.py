@@ -223,7 +223,7 @@ class MySpider(Spider):
                     **page_details,
                     "from_experience_fragment": True,
                 }
-        return
+        return None
 
     def _extract_page_details(self, response) -> Dict[str, Any]:
         return {

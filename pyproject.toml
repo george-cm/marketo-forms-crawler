@@ -20,6 +20,9 @@ crawl_marketo_forms = "crawl_marketo_forms:main"
 [project.urls]
 "Homepage" = "https://github.com/george-cm/marketo-forms-crawler"
 
+[project.optional-dependencies]
+dev = ['pyinstaller', 'wheel', 'mypy', 'ruff', 'isort']
+
 [tool.setuptools]
 py-modules = ["crawl_marketo_forms"]
 
