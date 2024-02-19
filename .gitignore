@@ -10,3 +10,4 @@ data_files
 .ruff_cache
 *.spec
 .venv_*
+pyinstaller/
