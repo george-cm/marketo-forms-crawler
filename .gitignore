@@ -12,3 +12,8 @@ data_files
 .venv_*
 pyinstaller/
 .chrome_data/
+*.egg-info
+.venv
+.vscode
+__pycache__
+.pytest_cache
