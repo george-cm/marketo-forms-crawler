@@ -14,7 +14,7 @@ from scrapy.linkextractors import LinkExtractor
 from scrapy.selector import SelectorList
 from scrapy.utils.url import ParseResult, parse_url
 
-__version__ = "0.8.0"
+__version__ = "0.9.0"
 
 
 # pylint: disable-next=W0622:redefined-builtin,W0613:unused-argument
